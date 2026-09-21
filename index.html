@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-<!-- Trigger Vercel redeploy -->
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
@@ -395,25 +394,37 @@
               <div class="field-help">No occurrence will be shown after this date.</div>
             </div>
 
+            <div class="field full">
+              <label style="font-size:.88rem">🔔 Notification Settings</label>
+              <div class="field-help">Set when the first reminder should appear, then optionally repeat it every chosen number of hours.</div>
+            </div>
+
             <div class="field">
-              <label for="reminderMode">Notification Reminder</label>
+              <label for="reminderMode">First Notification</label>
               <select id="reminderMode">
-                <option value="none">None</option>
+                <option value="none">No notification</option>
                 <option value="0">At task time</option>
                 <option value="10">10 minutes before</option>
                 <option value="30">30 minutes before</option>
                 <option value="60">1 hour before</option>
+                <option value="customHours">Custom hours before</option>
               </select>
             </div>
 
-            <div class="field" id="notifyEveryField" style="display:none">
-              <label for="notifyEveryHours">Repeat Notification Every</label>
-              <input id="notifyEveryHours" type="number" min="0" max="24" step="1" value="0" inputmode="numeric" />
-              <div class="field-help">Hours. Use 0 for one notification only. Example: 1 = every hour, 2 = every 2 hours.</div>
+            <div class="field" id="customHoursBeforeField" style="display:none">
+              <label for="customHoursBefore">How Many Hours Before?</label>
+              <input id="customHoursBefore" type="number" min="1" max="168" step="1" value="2" inputmode="numeric" />
+              <div class="field-help">Example: 3 = first notification 3 hours before the task.</div>
             </div>
 
-            <div class="field full" id="notificationHelp" style="display:none">
-              <div class="field-help">Notifications repeat while this occurrence is still pending. They stop at the end of that scheduled day or when you mark it completed. Keep Spotify Billing open for reminder checks.</div>
+            <div class="field" id="notifyEveryField">
+              <label for="notifyEveryHours">Repeat Notification Every (Hours)</label>
+              <input id="notifyEveryHours" type="number" min="0" max="24" step="1" value="0" inputmode="numeric" />
+              <div class="field-help"><b>0</b> = notify once only · <b>1</b> = every hour · <b>2</b> = every 2 hours · <b>3</b> = every 3 hours.</div>
+            </div>
+
+            <div class="field full" id="notificationHelp">
+              <div class="field-help">Example: First Notification = 2 hours before, Repeat Every = 1 → you are notified 2 hours before, then every hour while the task is still pending. Keep Spotify Billing open for reminder checks.</div>
             </div>
           </div>
         </form>
@@ -472,7 +483,7 @@
 
     const STORAGE_KEY = "spotifyBillingSchedules_v1";
     const NOTIFY_STATE_KEY = "spotifyBillingNotificationState_v1";
-    const REMINDER_LABELS = { none: "None", "0": "At task time", "10": "10 minutes before", "30": "30 minutes before", "60": "1 hour before" };
+    const REMINDER_LABELS = { none: "None", "0": "At task time", "10": "10 minutes before", "30": "30 minutes before", "60": "1 hour before", customHours: "Custom hours before" };
     const REPEAT_LABELS = {
       none: "Does Not Repeat",
       daily: "Daily",
@@ -503,7 +514,7 @@
       formBackdrop: $("formBackdrop"), formTitle: $("formTitle"), formError: $("formError"), scheduleForm: $("scheduleForm"),
       taskTitle: $("taskTitle"), taskDescription: $("taskDescription"), taskDate: $("taskDate"), taskTime: $("taskTime"), taskRepeat: $("taskRepeat"),
       endMode: $("endMode"), endModeField: $("endModeField"), endDateField: $("endDateField"), endDate: $("endDate"),
-      reminderMode: $("reminderMode"), notifyEveryField: $("notifyEveryField"), notifyEveryHours: $("notifyEveryHours"), notificationHelp: $("notificationHelp"),
+      reminderMode: $("reminderMode"), customHoursBeforeField: $("customHoursBeforeField"), customHoursBefore: $("customHoursBefore"), notifyEveryField: $("notifyEveryField"), notifyEveryHours: $("notifyEveryHours"), notificationHelp: $("notificationHelp"),
       enableNotificationsBtn: $("enableNotificationsBtn"), saveScheduleBtn: $("saveScheduleBtn"),
       detailBackdrop: $("detailBackdrop"), detailGrid: $("detailGrid"), editBtn: $("editBtn"), completeBtn: $("completeBtn"), deleteBtn: $("deleteBtn"),
       scopeBackdrop: $("scopeBackdrop"), scopeTitle: $("scopeTitle"), scopeOptions: $("scopeOptions"),
@@ -716,6 +727,7 @@
         time: data.time ?? series.time,
         recurrence: series.recurrence,
         reminderMode: String(data.reminderMode ?? series.reminderMode ?? "none"),
+        customHoursBefore: Number(data.customHoursBefore ?? series.customHoursBefore ?? 2),
         notifyEveryHours: Number(data.notifyEveryHours ?? series.notifyEveryHours ?? 0),
         completed: Boolean(data.completed),
         isOverride: Boolean(override)
@@ -861,6 +873,7 @@
       els.taskRepeat.value = "none";
       els.endMode.value = "never";
       els.reminderMode.value = "none";
+      els.customHoursBefore.value = "2";
       els.notifyEveryHours.value = "0";
       syncEndFields();
       syncReminderFields();
@@ -884,6 +897,7 @@
       els.endMode.value = mode === "occurrence" ? "never" : (series.endDate ? "date" : "never");
       els.endDate.value = mode === "occurrence" ? "" : (series.endDate || "");
       els.reminderMode.value = String(occ.reminderMode ?? series.reminderMode ?? "none");
+      els.customHoursBefore.value = String(occ.customHoursBefore ?? series.customHoursBefore ?? 2);
       els.notifyEveryHours.value = String(occ.notifyEveryHours ?? series.notifyEveryHours ?? 0);
       syncEndFields();
       syncReminderFields();
@@ -907,7 +921,10 @@
 
     function syncReminderFields() {
       const enabled = els.reminderMode.value !== "none";
-      els.notifyEveryField.style.display = enabled ? "grid" : "none";
+      const custom = els.reminderMode.value === "customHours";
+      els.customHoursBeforeField.style.display = custom ? "grid" : "none";
+      els.notifyEveryHours.disabled = !enabled;
+      els.notifyEveryField.style.opacity = enabled ? "1" : ".55";
       els.notificationHelp.style.display = enabled ? "grid" : "none";
       if (!enabled) els.notifyEveryHours.value = "0";
     }
@@ -924,6 +941,7 @@
         recurrence: els.taskRepeat.value,
         endDate: els.endMode.value === "date" ? els.endDate.value : null,
         reminderMode: els.reminderMode.value,
+        customHoursBefore: Math.max(1, Number.parseInt(els.customHoursBefore.value || "2", 10) || 2),
         notifyEveryHours: Math.max(0, Number.parseInt(els.notifyEveryHours.value || "0", 10) || 0)
       };
     }
@@ -935,6 +953,7 @@
       if (data.endDate && data.endDate < data.startDate) return "Repeat end date cannot be before the start date.";
       if (data.reminderMode !== "none" && !Object.prototype.hasOwnProperty.call(REMINDER_LABELS, data.reminderMode)) return "Please select a valid notification reminder.";
       if (data.reminderMode !== "none" && !data.time) return "Please set a task time before enabling notifications.";
+      if (data.reminderMode === "customHours" && (data.customHoursBefore < 1 || data.customHoursBefore > 168)) return "Custom hours before must be from 1 to 168 hours.";
       if (data.notifyEveryHours < 0 || data.notifyEveryHours > 24) return "Repeat notification hours must be from 0 to 24.";
       return "";
     }
@@ -962,6 +981,7 @@
             date: data.startDate,
             time: data.time,
             reminderMode: data.reminderMode,
+            customHoursBefore: data.customHoursBefore,
             notifyEveryHours: data.notifyEveryHours,
             completed: Boolean(old.completed || selectedOccurrence?.completed)
           };
@@ -984,6 +1004,15 @@
       renderAll();
     }
 
+    function reminderLabel(occ) {
+      const mode = String(occ.reminderMode ?? "none");
+      if (mode === "customHours") {
+        const h = Math.max(1, Number(occ.customHoursBefore) || 1);
+        return `${h} hour${h === 1 ? "" : "s"} before`;
+      }
+      return REMINDER_LABELS[mode] || "None";
+    }
+
     function openDetails(occ) {
       selectedOccurrence = occ;
       const series = schedules.find(s => s.id === occ.seriesId);
@@ -994,7 +1023,7 @@
         <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${escapeHtml(formatDateHuman(occ.date))}</div></div>
         <div class="detail-row"><div class="detail-label">Time</div><div class="detail-value">${escapeHtml(occ.time ? formatTime(occ.time) : "No specific time")}</div></div>
         <div class="detail-row"><div class="detail-label">Repeat</div><div class="detail-value">${escapeHtml(REPEAT_LABELS[series.recurrence])}${series.endDate ? ` · until ${escapeHtml(formatDateHuman(series.endDate))}` : ""}</div></div>
-        <div class="detail-row"><div class="detail-label">Reminder</div><div class="detail-value">${escapeHtml(REMINDER_LABELS[String(occ.reminderMode ?? "none")] || "None")}${Number(occ.notifyEveryHours) > 0 ? ` · every ${Number(occ.notifyEveryHours)} hour${Number(occ.notifyEveryHours) === 1 ? "" : "s"}` : ""}</div></div>
+        <div class="detail-row"><div class="detail-label">Reminder</div><div class="detail-value">${escapeHtml(reminderLabel(occ))}${Number(occ.notifyEveryHours) > 0 ? ` · repeats every ${Number(occ.notifyEveryHours)} hour${Number(occ.notifyEveryHours) === 1 ? "" : "s"}` : " · one notification"}</div></div>
         <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value"><span class="status-tag ${occ.completed ? "done" : ""}">${occ.completed ? "✓ Completed" : "Pending"}</span></div></div>`;
       els.completeBtn.textContent = occ.completed ? "↩ Mark Pending" : "✓ Complete";
       openModal(els.detailBackdrop);
@@ -1213,7 +1242,9 @@
         if (occ.completed || String(occ.reminderMode ?? "none") === "none" || !occ.time) continue;
         const scheduled = occurrenceDateTime(occ.date, occ.time);
         if (!scheduled) continue;
-        const offsetMinutes = Number(occ.reminderMode) || 0;
+        const offsetMinutes = String(occ.reminderMode) === "customHours"
+          ? Math.max(1, Number(occ.customHoursBefore) || 1) * 60
+          : (Number(occ.reminderMode) || 0);
         const firstReminder = new Date(scheduled.getTime() - offsetMinutes * 60000);
         const stopAt = endOfOccurrenceDay(occ.date);
         if (now < firstReminder || now > stopAt) continue;
