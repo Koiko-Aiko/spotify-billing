@@ -1,0 +1,1285 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Spotify Billing</title>
+  <style>
+    :root {
+      --bg: #0b0d0c;
+      --surface: #121513;
+      --surface-2: #181c19;
+      --surface-3: #202522;
+      --border: #2a312d;
+      --text: #f5f7f5;
+      --muted: #9ca69f;
+      --green: #1ed760;
+      --green-2: #17b84f;
+      --danger: #ff6b6b;
+      --warning: #f5c451;
+      --shadow: 0 18px 45px rgba(0,0,0,.28);
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 10% 0%, rgba(30,215,96,.08), transparent 28%),
+        linear-gradient(180deg, #090b0a 0%, var(--bg) 100%);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    button, input, textarea, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid var(--green);
+      outline-offset: 2px;
+    }
+
+    .app-shell { width: min(1500px, 100%); margin: 0 auto; padding: 18px; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 16px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      background: rgba(18,21,19,.88);
+      backdrop-filter: blur(14px);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      position: sticky;
+      top: 10px;
+      z-index: 20;
+    }
+
+    .brand-wrap { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .brand-mark {
+      width: 42px; height: 42px; border-radius: 50%; background: var(--green);
+      display: grid; place-items: center; color: #071108; font-weight: 900; box-shadow: 0 0 0 6px rgba(30,215,96,.08);
+      flex: 0 0 auto;
+    }
+    .brand h1 { margin: 0; font-size: clamp(1.15rem, 2vw, 1.55rem); letter-spacing: -.02em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: .84rem; }
+    .top-actions { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+    .notify-btn.enabled { border-color: rgba(30,215,96,.45); color: #c9f8d8; background: rgba(30,215,96,.10); }
+
+    .primary-btn, .secondary-btn, .danger-btn, .ghost-btn, .icon-btn {
+      border: 1px solid transparent;
+      border-radius: 12px;
+      padding: 10px 14px;
+      color: var(--text);
+      transition: .18s ease;
+      font-weight: 700;
+    }
+    .primary-btn { background: var(--green); color: #071108; }
+    .primary-btn:hover { background: #28e96c; transform: translateY(-1px); }
+    .secondary-btn { background: var(--surface-3); border-color: var(--border); }
+    .secondary-btn:hover, .ghost-btn:hover, .icon-btn:hover { background: #2a302c; }
+    .ghost-btn { background: transparent; border-color: var(--border); }
+    .danger-btn { background: rgba(255,107,107,.12); border-color: rgba(255,107,107,.35); color: #ff9d9d; }
+    .danger-btn:hover { background: rgba(255,107,107,.2); }
+    .icon-btn { padding: 8px 10px; background: transparent; border-color: var(--border); }
+
+    .layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 16px; align-items: start; }
+    .sidebar { display: grid; gap: 14px; position: sticky; top: 96px; }
+    .panel, .calendar-card {
+      background: linear-gradient(180deg, rgba(24,28,25,.96), rgba(16,19,17,.96));
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+    }
+    .panel { padding: 15px; }
+    .panel-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+    .panel h2 { margin: 0; font-size: .88rem; text-transform: uppercase; letter-spacing: .13em; color: #d7ded9; }
+    .count-badge { min-width: 26px; height: 26px; padding: 0 8px; border-radius: 999px; display: inline-grid; place-items: center; background: #202620; color: var(--green); font-weight: 800; font-size: .8rem; }
+
+    .search-wrap { position: relative; }
+    .search-wrap input {
+      width: 100%; padding: 11px 12px 11px 36px; border-radius: 12px; border: 1px solid var(--border);
+      background: #0f1210; color: var(--text);
+    }
+    .search-wrap span { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); }
+    .filter-row { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
+    .filter-chip {
+      border: 1px solid var(--border); background: #121612; color: var(--muted); border-radius: 999px;
+      padding: 7px 10px; font-size: .78rem; font-weight: 800;
+    }
+    .filter-chip.active { color: #061007; background: var(--green); border-color: var(--green); }
+
+    .mini-list { display: grid; gap: 8px; }
+    .mini-item {
+      display: grid; grid-template-columns: 52px minmax(0,1fr); gap: 10px; align-items: center;
+      padding: 9px; border-radius: 12px; background: #111411; border: 1px solid #242b26;
+    }
+    .mini-date { text-align: center; border-right: 1px solid var(--border); padding-right: 8px; }
+    .mini-date .mon { color: var(--green); font-weight: 900; font-size: .69rem; letter-spacing: .12em; }
+    .mini-date .day { font-size: 1.15rem; font-weight: 900; }
+    .mini-main { min-width: 0; }
+    .mini-title { font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mini-meta { margin-top: 3px; color: var(--muted); font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .mini-item.completed { opacity: .58; }
+    .mini-item.completed .mini-title { text-decoration: line-through; }
+    .empty { color: var(--muted); font-size: .86rem; padding: 8px 2px; line-height: 1.5; }
+
+    .calendar-card { overflow: hidden; }
+    .calendar-toolbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px;
+      border-bottom: 1px solid var(--border);
+    }
+    .calendar-toolbar h2 { margin: 0; font-size: clamp(1.05rem, 2.2vw, 1.55rem); text-align: center; }
+    .nav-group { display: flex; gap: 8px; align-items: center; }
+
+    .weekday-row, .calendar-grid { display: grid; grid-template-columns: repeat(7, minmax(0,1fr)); }
+    .weekday-row { border-bottom: 1px solid var(--border); background: #111411; }
+    .weekday { padding: 10px 6px; text-align: center; color: var(--muted); font-size: .72rem; font-weight: 900; letter-spacing: .12em; }
+    .calendar-grid { background: #0e110f; }
+    .day-cell {
+      min-height: 132px; padding: 8px; border-right: 1px solid #202620; border-bottom: 1px solid #202620;
+      position: relative; overflow: hidden; transition: background .16s ease;
+    }
+    .day-cell:nth-child(7n) { border-right: 0; }
+    .day-cell:hover { background: #151915; }
+    .day-cell.outside { background: #0b0d0c; }
+    .day-cell.outside .day-number { color: #56605a; }
+    .day-cell.today { box-shadow: inset 0 0 0 1px rgba(30,215,96,.75); background: rgba(30,215,96,.035); }
+    .day-cell.selected { background: rgba(30,215,96,.055); }
+    .day-number {
+      width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%;
+      font-weight: 850; font-size: .85rem; color: #d9dfda;
+    }
+    .today .day-number { background: var(--green); color: #061007; }
+    .tasks-stack { display: grid; gap: 5px; margin-top: 4px; }
+    .task-pill {
+      border: 1px solid rgba(30,215,96,.18); background: rgba(30,215,96,.09); border-radius: 9px;
+      padding: 6px 7px; min-width: 0; color: #e9f7ed; text-align: left; width: 100%;
+    }
+    .task-pill:hover { background: rgba(30,215,96,.15); border-color: rgba(30,215,96,.36); }
+    .task-pill.completed { opacity: .5; }
+    .task-pill.completed .task-title { text-decoration: line-through; }
+    .task-title { font-size: .76rem; font-weight: 850; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .task-time { font-size: .67rem; color: #9fc5aa; margin-top: 2px; }
+    .more-btn { border: 0; background: transparent; color: var(--green); padding: 2px 1px; font-size: .72rem; font-weight: 850; text-align: left; }
+
+    .modal-backdrop {
+      position: fixed; inset: 0; z-index: 100; background: rgba(0,0,0,.72); backdrop-filter: blur(5px);
+      display: none; align-items: center; justify-content: center; padding: 18px;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      width: min(620px, 100%); max-height: min(92vh, 900px); overflow: auto;
+      background: #121612; border: 1px solid #323a34; border-radius: 20px; box-shadow: 0 30px 80px rgba(0,0,0,.5);
+    }
+    .modal.small { width: min(480px, 100%); }
+    .modal-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--border); }
+    .modal-head h3 { margin: 0; font-size: 1.05rem; }
+    .modal-body { padding: 18px; }
+    .modal-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 9px; padding: 0 18px 18px; }
+
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+    .field { display: grid; gap: 7px; }
+    .field.full { grid-column: 1 / -1; }
+    .field label { color: #d6ddd8; font-size: .78rem; font-weight: 850; }
+    .field input, .field textarea, .field select {
+      width: 100%; border: 1px solid var(--border); border-radius: 11px; background: #0d100e; color: var(--text);
+      padding: 11px 12px;
+    }
+    .field textarea { min-height: 88px; resize: vertical; }
+    .field-help { color: var(--muted); font-size: .75rem; }
+    .form-error { display: none; padding: 10px 12px; border-radius: 11px; background: rgba(255,107,107,.09); border: 1px solid rgba(255,107,107,.28); color: #ffb1b1; font-size: .82rem; margin-bottom: 12px; }
+    .form-error.show { display: block; }
+
+    .detail-grid { display: grid; gap: 12px; }
+    .detail-row { display: grid; grid-template-columns: 110px minmax(0,1fr); gap: 12px; padding-bottom: 10px; border-bottom: 1px solid #242b26; }
+    .detail-row:last-child { border-bottom: 0; }
+    .detail-label { color: var(--muted); font-size: .78rem; font-weight: 800; }
+    .detail-value { color: #edf2ee; overflow-wrap: anywhere; }
+    .status-tag { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 5px 9px; font-size: .76rem; font-weight: 850; background: #202620; }
+    .status-tag.done { color: var(--green); }
+
+    .scope-options { display: grid; gap: 9px; }
+    .scope-btn {
+      width: 100%; text-align: left; padding: 12px 13px; border-radius: 12px; border: 1px solid var(--border);
+      background: #0f120f; color: var(--text); font-weight: 800;
+    }
+    .scope-btn:hover { border-color: rgba(30,215,96,.55); background: rgba(30,215,96,.06); }
+    .scope-btn small { display: block; color: var(--muted); font-weight: 500; margin-top: 3px; line-height: 1.35; }
+
+    .toast-wrap { position: fixed; right: 18px; bottom: 18px; z-index: 200; display: grid; gap: 8px; }
+    .toast {
+      background: #18201a; border: 1px solid #2e4b36; color: #eaf7ee; padding: 11px 13px; border-radius: 12px;
+      box-shadow: var(--shadow); animation: toastIn .2s ease;
+    }
+    @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .day-agenda-list { display: grid; gap: 8px; }
+    .agenda-item { border: 1px solid var(--border); border-radius: 12px; padding: 11px; background: #0f120f; }
+    .agenda-item button { width: 100%; border: 0; background: transparent; color: inherit; text-align: left; padding: 0; }
+
+    @media (max-width: 1050px) {
+      .layout { grid-template-columns: 270px minmax(0,1fr); }
+      .day-cell { min-height: 118px; }
+    }
+
+    @media (max-width: 850px) {
+      .app-shell { padding: 10px; }
+      .topbar { position: static; }
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { position: static; grid-template-columns: repeat(2, minmax(0,1fr)); }
+      .sidebar .panel:first-child { grid-column: 1 / -1; }
+      .calendar-card { order: -1; }
+    }
+
+    @media (max-width: 650px) {
+      .brand p { display: none; }
+      .topbar { padding: 12px; }
+      .topbar .primary-btn { padding: 10px 11px; font-size: .83rem; }
+      .notify-btn { padding: 10px 11px; }
+      .notify-text { display: none; }
+      .sidebar { grid-template-columns: 1fr; }
+      .calendar-toolbar { display: grid; grid-template-columns: 1fr; }
+      .calendar-toolbar h2 { order: -1; }
+      .nav-group { justify-content: center; }
+      .calendar-toolbar .nav-group:last-child { justify-content: center; }
+      .weekday { font-size: .62rem; letter-spacing: .06em; padding: 8px 2px; }
+      .day-cell { min-height: 88px; padding: 5px 4px; }
+      .day-number { width: 24px; height: 24px; font-size: .72rem; }
+      .task-pill { padding: 4px 5px; border-radius: 7px; }
+      .task-title { font-size: .66rem; }
+      .task-time { display: none; }
+      .tasks-stack { gap: 3px; }
+      .form-grid { grid-template-columns: 1fr; }
+      .field.full { grid-column: auto; }
+      .detail-row { grid-template-columns: 1fr; gap: 4px; }
+    }
+
+    @media (max-width: 420px) {
+      .app-shell { padding: 6px; }
+      .brand-mark { width: 36px; height: 36px; }
+      .brand h1 { font-size: 1rem; }
+      .topbar { gap: 8px; }
+      .topbar .primary-btn { font-size: 0; width: 42px; height: 42px; border-radius: 50%; padding: 0; }
+      .topbar .primary-btn::after { content: "+"; font-size: 1.4rem; }
+      .calendar-toolbar { padding: 12px 8px; }
+      .secondary-btn { padding: 8px 9px; font-size: .75rem; }
+      .day-cell { min-height: 80px; }
+      .task-title { font-size: .62rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand-wrap">
+        <div class="brand-mark">S</div>
+        <div class="brand">
+          <h1>Spotify Billing</h1>
+          <p>Calendar & recurring task scheduler</p>
+        </div>
+      </div>
+      <div class="top-actions">
+        <button class="secondary-btn notify-btn" id="enableNotificationsBtn" type="button">
+          <span aria-hidden="true">🔔</span> <span class="notify-text">Enable Notifications</span>
+        </button>
+        <button class="primary-btn" id="addScheduleBtn">+ Add Schedule</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <aside class="sidebar">
+        <section class="panel">
+          <div class="search-wrap">
+            <span>⌕</span>
+            <input id="searchInput" type="search" placeholder="Search schedules..." autocomplete="off" />
+          </div>
+          <div class="filter-row" id="filterRow">
+            <button class="filter-chip active" data-filter="all">All</button>
+            <button class="filter-chip" data-filter="upcoming">Upcoming</button>
+            <button class="filter-chip" data-filter="completed">Completed</button>
+            <button class="filter-chip" data-filter="recurring">Recurring</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Today</h2><span class="count-badge" id="todayCount">0</span></div>
+          <div class="mini-list" id="todayList"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Upcoming</h2><span class="count-badge" id="upcomingCount">0</span></div>
+          <div class="mini-list" id="upcomingList"></div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><h2>Completed</h2><span class="count-badge" id="completedCount">0</span></div>
+          <div class="mini-list" id="completedList"></div>
+        </section>
+      </aside>
+
+      <section class="calendar-card">
+        <div class="calendar-toolbar">
+          <div class="nav-group"><button class="secondary-btn" id="prevBtn">← Previous</button></div>
+          <h2 id="monthLabel">Month Year</h2>
+          <div class="nav-group">
+            <button class="secondary-btn" id="todayBtn">Today</button>
+            <button class="secondary-btn" id="nextBtn">Next →</button>
+          </div>
+        </div>
+        <div class="weekday-row">
+          <div class="weekday">SUN</div><div class="weekday">MON</div><div class="weekday">TUE</div>
+          <div class="weekday">WED</div><div class="weekday">THU</div><div class="weekday">FRI</div><div class="weekday">SAT</div>
+        </div>
+        <div class="calendar-grid" id="calendarGrid"></div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Add / Edit Schedule Modal -->
+  <div class="modal-backdrop" id="formBackdrop" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="formTitle">
+      <div class="modal-head">
+        <h3 id="formTitle">Add Schedule</h3>
+        <button class="icon-btn" data-close="formBackdrop" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-error" id="formError"></div>
+        <form id="scheduleForm">
+          <div class="form-grid">
+            <div class="field full">
+              <label for="taskTitle">Title *</label>
+              <input id="taskTitle" maxlength="100" placeholder="Spotify Premium" required />
+            </div>
+            <div class="field full">
+              <label for="taskDescription">Description</label>
+              <textarea id="taskDescription" maxlength="500" placeholder="Monthly Spotify payment"></textarea>
+            </div>
+            <div class="field">
+              <label for="taskDate">Date *</label>
+              <input id="taskDate" type="date" required />
+            </div>
+            <div class="field">
+              <label for="taskTime">Time</label>
+              <input id="taskTime" type="time" />
+            </div>
+            <div class="field">
+              <label for="taskRepeat">Repeat *</label>
+              <select id="taskRepeat" required>
+                <option value="none">Does Not Repeat</option>
+                <option value="daily">Daily</option>
+                <option value="everyOtherDay">Every Other Day</option>
+                <option value="weekly">Weekly</option>
+                <option value="everyOtherWeek">Every Other Week</option>
+                <option value="monthly">Monthly</option>
+                <option value="everyOtherMonth">Every Other Month</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </div>
+            <div class="field" id="endModeField">
+              <label for="endMode">End Repeat</label>
+              <select id="endMode">
+                <option value="never">Never</option>
+                <option value="date">On Date</option>
+              </select>
+            </div>
+            <div class="field full" id="endDateField" style="display:none">
+              <label for="endDate">Repeat Until</label>
+              <input id="endDate" type="date" />
+              <div class="field-help">No occurrence will be shown after this date.</div>
+            </div>
+
+            <div class="field">
+              <label for="reminderMode">Notification Reminder</label>
+              <select id="reminderMode">
+                <option value="none">None</option>
+                <option value="0">At task time</option>
+                <option value="10">10 minutes before</option>
+                <option value="30">30 minutes before</option>
+                <option value="60">1 hour before</option>
+              </select>
+            </div>
+
+            <div class="field" id="notifyEveryField" style="display:none">
+              <label for="notifyEveryHours">Repeat Notification Every</label>
+              <input id="notifyEveryHours" type="number" min="0" max="24" step="1" value="0" inputmode="numeric" />
+              <div class="field-help">Hours. Use 0 for one notification only. Example: 1 = every hour, 2 = every 2 hours.</div>
+            </div>
+
+            <div class="field full" id="notificationHelp" style="display:none">
+              <div class="field-help">Notifications repeat while this occurrence is still pending. They stop at the end of that scheduled day or when you mark it completed. Keep Spotify Billing open for reminder checks.</div>
+            </div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-actions">
+        <button class="ghost-btn" data-close="formBackdrop">Cancel</button>
+        <button class="primary-btn" id="saveScheduleBtn">Save Schedule</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Task Details Modal -->
+  <div class="modal-backdrop" id="detailBackdrop" aria-hidden="true">
+    <div class="modal small" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+      <div class="modal-head">
+        <h3 id="detailTitle">Schedule Details</h3>
+        <button class="icon-btn" data-close="detailBackdrop" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body"><div class="detail-grid" id="detailGrid"></div></div>
+      <div class="modal-actions">
+        <button class="danger-btn" id="deleteBtn">Delete</button>
+        <button class="secondary-btn" id="completeBtn">✓ Complete</button>
+        <button class="primary-btn" id="editBtn">Edit</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Recurring Scope Modal -->
+  <div class="modal-backdrop" id="scopeBackdrop" aria-hidden="true">
+    <div class="modal small" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="scopeTitle">Choose an option</h3>
+        <button class="icon-btn" data-close="scopeBackdrop" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="scope-options" id="scopeOptions"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Day Agenda Modal -->
+  <div class="modal-backdrop" id="agendaBackdrop" aria-hidden="true">
+    <div class="modal small" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h3 id="agendaTitle">Schedules</h3>
+        <button class="icon-btn" data-close="agendaBackdrop" aria-label="Close">✕</button>
+      </div>
+      <div class="modal-body"><div class="day-agenda-list" id="agendaList"></div></div>
+    </div>
+  </div>
+
+  <div class="toast-wrap" id="toastWrap"></div>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "spotifyBillingSchedules_v1";
+    const NOTIFY_STATE_KEY = "spotifyBillingNotificationState_v1";
+    const REMINDER_LABELS = { none: "None", "0": "At task time", "10": "10 minutes before", "30": "30 minutes before", "60": "1 hour before" };
+    const REPEAT_LABELS = {
+      none: "Does Not Repeat",
+      daily: "Daily",
+      everyOtherDay: "Every Other Day",
+      weekly: "Weekly",
+      everyOtherWeek: "Every Other Week",
+      monthly: "Monthly",
+      everyOtherMonth: "Every Other Month",
+      yearly: "Yearly"
+    };
+
+    let schedules = loadSchedules();
+    let notificationState = loadNotificationState();
+    let viewDate = startOfMonth(new Date());
+    let activeFilter = "all";
+    let searchTerm = "";
+    let selectedOccurrence = null;
+    let editContext = null; // { mode, seriesId, originalDate }
+    let pendingScopeAction = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    const els = {
+      calendarGrid: $("calendarGrid"), monthLabel: $("monthLabel"), prevBtn: $("prevBtn"), nextBtn: $("nextBtn"), todayBtn: $("todayBtn"),
+      addScheduleBtn: $("addScheduleBtn"), searchInput: $("searchInput"), filterRow: $("filterRow"),
+      todayList: $("todayList"), upcomingList: $("upcomingList"), completedList: $("completedList"),
+      todayCount: $("todayCount"), upcomingCount: $("upcomingCount"), completedCount: $("completedCount"),
+      formBackdrop: $("formBackdrop"), formTitle: $("formTitle"), formError: $("formError"), scheduleForm: $("scheduleForm"),
+      taskTitle: $("taskTitle"), taskDescription: $("taskDescription"), taskDate: $("taskDate"), taskTime: $("taskTime"), taskRepeat: $("taskRepeat"),
+      endMode: $("endMode"), endModeField: $("endModeField"), endDateField: $("endDateField"), endDate: $("endDate"),
+      reminderMode: $("reminderMode"), notifyEveryField: $("notifyEveryField"), notifyEveryHours: $("notifyEveryHours"), notificationHelp: $("notificationHelp"),
+      enableNotificationsBtn: $("enableNotificationsBtn"), saveScheduleBtn: $("saveScheduleBtn"),
+      detailBackdrop: $("detailBackdrop"), detailGrid: $("detailGrid"), editBtn: $("editBtn"), completeBtn: $("completeBtn"), deleteBtn: $("deleteBtn"),
+      scopeBackdrop: $("scopeBackdrop"), scopeTitle: $("scopeTitle"), scopeOptions: $("scopeOptions"),
+      agendaBackdrop: $("agendaBackdrop"), agendaTitle: $("agendaTitle"), agendaList: $("agendaList"),
+      toastWrap: $("toastWrap")
+    };
+
+    function uid() {
+      return (crypto.randomUUID ? crypto.randomUUID() : "id-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+    }
+
+    function loadSchedules() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return [];
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+        return parsed.map(s => ({ ...s, exceptions: s.exceptions && typeof s.exceptions === "object" ? s.exceptions : {} }));
+      } catch (err) {
+        console.warn("Could not load saved schedules:", err);
+        return [];
+      }
+    }
+
+    function saveSchedules() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(schedules));
+    }
+
+    function loadNotificationState() {
+      try {
+        const raw = localStorage.getItem(NOTIFY_STATE_KEY);
+        const parsed = raw ? JSON.parse(raw) : {};
+        return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+      } catch (err) {
+        console.warn("Could not load notification state:", err);
+        return {};
+      }
+    }
+
+    function saveNotificationState() {
+      try {
+        localStorage.setItem(NOTIFY_STATE_KEY, JSON.stringify(notificationState));
+      } catch (err) {
+        console.warn("Could not save notification state:", err);
+      }
+    }
+
+    function parseDate(str) {
+      if (!str) return null;
+      const [y, m, d] = str.split("-").map(Number);
+      return new Date(y, m - 1, d, 12, 0, 0, 0);
+    }
+
+    function toDateStr(date) {
+      return [date.getFullYear(), String(date.getMonth() + 1).padStart(2,"0"), String(date.getDate()).padStart(2,"0")].join("-");
+    }
+
+    function startOfDay(date) { return new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12); }
+    function startOfMonth(date) { return new Date(date.getFullYear(), date.getMonth(), 1, 12); }
+    function addDays(date, days) { const d = new Date(date); d.setDate(d.getDate() + days); return startOfDay(d); }
+    function dayBefore(dateStr) { return toDateStr(addDays(parseDate(dateStr), -1)); }
+    function daysInMonth(y, mIndex) { return new Date(y, mIndex + 1, 0).getDate(); }
+
+    function addMonthsAnchored(startDate, monthsToAdd) {
+      const y = startDate.getFullYear();
+      const m = startDate.getMonth() + monthsToAdd;
+      const targetY = y + Math.floor(m / 12);
+      const targetM = ((m % 12) + 12) % 12;
+      const day = Math.min(startDate.getDate(), daysInMonth(targetY, targetM));
+      return new Date(targetY, targetM, day, 12);
+    }
+
+    function addYearsAnchored(startDate, yearsToAdd) {
+      const targetY = startDate.getFullYear() + yearsToAdd;
+      const m = startDate.getMonth();
+      const day = Math.min(startDate.getDate(), daysInMonth(targetY, m));
+      return new Date(targetY, m, day, 12);
+    }
+
+    function formatMonthYear(date) {
+      return new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" }).format(date);
+    }
+
+    function formatDateHuman(dateStr) {
+      const d = parseDate(dateStr);
+      return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "long", day: "numeric", year: "numeric" }).format(d);
+    }
+
+    function formatMiniDate(dateStr) {
+      const d = parseDate(dateStr);
+      return {
+        mon: new Intl.DateTimeFormat(undefined, { month: "short" }).format(d).toUpperCase(),
+        day: String(d.getDate())
+      };
+    }
+
+    function formatTime(time) {
+      if (!time) return "Any time";
+      const [h, m] = time.split(":").map(Number);
+      const d = new Date(2000,0,1,h,m);
+      return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(d);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>'"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[c]));
+    }
+
+    function toast(message) {
+      const el = document.createElement("div");
+      el.className = "toast";
+      el.textContent = message;
+      els.toastWrap.appendChild(el);
+      setTimeout(() => { el.style.opacity = "0"; el.style.transform = "translateY(6px)"; }, 2600);
+      setTimeout(() => el.remove(), 3000);
+    }
+
+    function openModal(el) { el.classList.add("open"); el.setAttribute("aria-hidden", "false"); }
+    function closeModal(el) { el.classList.remove("open"); el.setAttribute("aria-hidden", "true"); }
+
+    document.querySelectorAll("[data-close]").forEach(btn => {
+      btn.addEventListener("click", () => closeModal($(btn.dataset.close)));
+    });
+    document.querySelectorAll(".modal-backdrop").forEach(backdrop => {
+      backdrop.addEventListener("click", e => { if (e.target === backdrop) closeModal(backdrop); });
+    });
+
+    function getRangeForCalendar() {
+      const first = startOfMonth(viewDate);
+      const start = addDays(first, -first.getDay());
+      const end = addDays(start, 41);
+      return { start, end };
+    }
+
+    function generateBaseDates(series, rangeStart, rangeEnd) {
+      const start = parseDate(series.startDate);
+      if (!start || start > rangeEnd) return [];
+      const seriesEnd = series.endDate ? parseDate(series.endDate) : null;
+      const hardEnd = seriesEnd && seriesEnd < rangeEnd ? seriesEnd : rangeEnd;
+      if (hardEnd < start) return [];
+
+      const dates = [];
+      const pushIfInRange = d => {
+        if (d >= rangeStart && d <= hardEnd) dates.push(toDateStr(d));
+      };
+
+      if (series.recurrence === "none") {
+        pushIfInRange(start);
+        return dates;
+      }
+
+      if (["daily","everyOtherDay","weekly","everyOtherWeek"].includes(series.recurrence)) {
+        const step = { daily:1, everyOtherDay:2, weekly:7, everyOtherWeek:14 }[series.recurrence];
+        let current = new Date(start);
+        if (current < rangeStart) {
+          const diff = Math.floor((rangeStart - current) / 86400000);
+          const jumps = Math.floor(diff / step);
+          current = addDays(current, jumps * step);
+          while (current < rangeStart) current = addDays(current, step);
+        }
+        let guard = 0;
+        while (current <= hardEnd && guard++ < 5000) {
+          pushIfInRange(current);
+          current = addDays(current, step);
+        }
+        return dates;
+      }
+
+      if (["monthly","everyOtherMonth"].includes(series.recurrence)) {
+        const stepMonths = series.recurrence === "monthly" ? 1 : 2;
+        let index = 0;
+        let current = start;
+        while (current < rangeStart && index < 2400) {
+          index++;
+          current = addMonthsAnchored(start, index * stepMonths);
+        }
+        let guard = 0;
+        while (current <= hardEnd && guard++ < 2400) {
+          pushIfInRange(current);
+          index++;
+          current = addMonthsAnchored(start, index * stepMonths);
+        }
+        return dates;
+      }
+
+      if (series.recurrence === "yearly") {
+        let index = 0;
+        let current = start;
+        while (current < rangeStart && index < 500) {
+          index++;
+          current = addYearsAnchored(start, index);
+        }
+        let guard = 0;
+        while (current <= hardEnd && guard++ < 500) {
+          pushIfInRange(current);
+          index++;
+          current = addYearsAnchored(start, index);
+        }
+      }
+      return dates;
+    }
+
+    function buildOccurrence(series, originalDate, displayDate = originalDate, override = null) {
+      const data = override || {};
+      return {
+        seriesId: series.id,
+        originalDate,
+        date: data.date || displayDate,
+        title: data.title ?? series.title,
+        description: data.description ?? series.description,
+        time: data.time ?? series.time,
+        recurrence: series.recurrence,
+        reminderMode: String(data.reminderMode ?? series.reminderMode ?? "none"),
+        notifyEveryHours: Number(data.notifyEveryHours ?? series.notifyEveryHours ?? 0),
+        completed: Boolean(data.completed),
+        isOverride: Boolean(override)
+      };
+    }
+
+    function getOccurrences(rangeStart, rangeEnd) {
+      const out = [];
+      for (const series of schedules) {
+        const baseDates = generateBaseDates(series, rangeStart, rangeEnd);
+        for (const dateStr of baseDates) {
+          const ex = series.exceptions?.[dateStr];
+          if (ex?.type === "deleted") continue;
+          if (ex?.type === "override" && ex.date && ex.date !== dateStr) continue; // moved occurrence added below
+          if (ex?.type === "override") out.push(buildOccurrence(series, dateStr, ex.date || dateStr, ex));
+          else if (ex?.type === "completed") out.push(buildOccurrence(series, dateStr, dateStr, { completed: true }));
+          else out.push(buildOccurrence(series, dateStr));
+        }
+
+        // Include moved overrides if the moved date is inside the requested range.
+        for (const [originalDate, ex] of Object.entries(series.exceptions || {})) {
+          if (ex?.type !== "override" || !ex.date || ex.date === originalDate) continue;
+          const moved = parseDate(ex.date);
+          if (moved && moved >= rangeStart && moved <= rangeEnd) {
+            out.push(buildOccurrence(series, originalDate, ex.date, ex));
+          }
+        }
+      }
+      out.sort(compareOccurrences);
+      return out;
+    }
+
+    function compareOccurrences(a, b) {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return (a.time || "99:99").localeCompare(b.time || "99:99") || a.title.localeCompare(b.title);
+    }
+
+    function occurrenceMatches(occ) {
+      const q = searchTerm.trim().toLowerCase();
+      if (q && !(occ.title + " " + (occ.description || "")).toLowerCase().includes(q)) return false;
+      const todayStr = toDateStr(new Date());
+      if (activeFilter === "upcoming" && (occ.date < todayStr || occ.completed)) return false;
+      if (activeFilter === "completed" && !occ.completed) return false;
+      if (activeFilter === "recurring" && occ.recurrence === "none") return false;
+      return true;
+    }
+
+    function renderAll() {
+      renderCalendar();
+      renderSidebar();
+    }
+
+    function renderCalendar() {
+      els.monthLabel.textContent = formatMonthYear(viewDate);
+      const { start, end } = getRangeForCalendar();
+      const all = getOccurrences(start, end).filter(occurrenceMatches);
+      const byDate = new Map();
+      for (const occ of all) {
+        if (!byDate.has(occ.date)) byDate.set(occ.date, []);
+        byDate.get(occ.date).push(occ);
+      }
+
+      els.calendarGrid.innerHTML = "";
+      const todayStr = toDateStr(new Date());
+      for (let i = 0; i < 42; i++) {
+        const date = addDays(start, i);
+        const dateStr = toDateStr(date);
+        const isOutside = date.getMonth() !== viewDate.getMonth();
+        const cell = document.createElement("div");
+        cell.className = "day-cell" + (isOutside ? " outside" : "") + (dateStr === todayStr ? " today" : "");
+        cell.dataset.date = dateStr;
+        cell.innerHTML = `<div class="day-number">${date.getDate()}</div><div class="tasks-stack"></div>`;
+        cell.addEventListener("click", e => {
+          if (e.target.closest("button")) return;
+          openAddForm(dateStr);
+        });
+        const stack = cell.querySelector(".tasks-stack");
+        const dayTasks = byDate.get(dateStr) || [];
+        const maxVisible = window.innerWidth <= 650 ? 2 : 3;
+        dayTasks.slice(0, maxVisible).forEach(occ => stack.appendChild(makeTaskPill(occ)));
+        if (dayTasks.length > maxVisible) {
+          const more = document.createElement("button");
+          more.className = "more-btn";
+          more.textContent = `+${dayTasks.length - maxVisible} more`;
+          more.addEventListener("click", e => { e.stopPropagation(); openDayAgenda(dateStr, dayTasks); });
+          stack.appendChild(more);
+        }
+        els.calendarGrid.appendChild(cell);
+      }
+    }
+
+    function makeTaskPill(occ) {
+      const btn = document.createElement("button");
+      btn.className = "task-pill" + (occ.completed ? " completed" : "");
+      btn.innerHTML = `<div class="task-title">${occ.completed ? "✓ " : ""}${escapeHtml(occ.title)}</div>${occ.time ? `<div class="task-time">${escapeHtml(formatTime(occ.time))}</div>` : ""}`;
+      btn.addEventListener("click", e => { e.stopPropagation(); openDetails(occ); });
+      return btn;
+    }
+
+    function renderSidebar() {
+      const today = startOfDay(new Date());
+      const todayStr = toDateStr(today);
+      const horizon = addDays(today, 730);
+      const past = addDays(today, -730);
+      const futureOcc = getOccurrences(today, horizon).filter(occurrenceMatches);
+      const allRange = getOccurrences(past, horizon).filter(occurrenceMatches);
+      const todayItems = futureOcc.filter(o => o.date === todayStr);
+      const upcoming = futureOcc.filter(o => o.date >= todayStr && !o.completed).slice(0, 8);
+      const completed = allRange.filter(o => o.completed).sort((a,b) => compareOccurrences(b,a)).slice(0, 6);
+
+      els.todayCount.textContent = todayItems.length;
+      els.upcomingCount.textContent = upcoming.length;
+      els.completedCount.textContent = completed.length;
+      renderMiniList(els.todayList, todayItems, "No tasks scheduled for today.");
+      renderMiniList(els.upcomingList, upcoming, "No upcoming schedules. Your schedule is clear.");
+      renderMiniList(els.completedList, completed, "No completed schedules yet.");
+    }
+
+    function renderMiniList(container, items, emptyText) {
+      container.innerHTML = "";
+      if (!items.length) {
+        container.innerHTML = `<div class="empty">${escapeHtml(emptyText)}</div>`;
+        return;
+      }
+      items.forEach(occ => {
+        const md = formatMiniDate(occ.date);
+        const el = document.createElement("div");
+        el.className = "mini-item" + (occ.completed ? " completed" : "");
+        el.innerHTML = `
+          <div class="mini-date"><div class="mon">${md.mon}</div><div class="day">${md.day}</div></div>
+          <div class="mini-main"><div class="mini-title">${occ.completed ? "✓ " : ""}${escapeHtml(occ.title)}</div><div class="mini-meta">${escapeHtml(occ.time ? formatTime(occ.time) : REPEAT_LABELS[occ.recurrence])}</div></div>`;
+        el.addEventListener("click", () => openDetails(occ));
+        container.appendChild(el);
+      });
+    }
+
+    function openAddForm(dateStr = toDateStr(new Date())) {
+      editContext = null;
+      els.taskRepeat.disabled = false;
+      els.formTitle.textContent = "Add Schedule";
+      els.scheduleForm.reset();
+      els.taskDate.value = dateStr;
+      els.taskRepeat.value = "none";
+      els.endMode.value = "never";
+      els.reminderMode.value = "none";
+      els.notifyEveryHours.value = "0";
+      syncEndFields();
+      syncReminderFields();
+      hideFormError();
+      openModal(els.formBackdrop);
+      setTimeout(() => els.taskTitle.focus(), 60);
+    }
+
+    function openEditForm(occ, mode) {
+      const series = schedules.find(s => s.id === occ.seriesId);
+      if (!series) return;
+      const ex = series.exceptions?.[occ.originalDate];
+      editContext = { mode, seriesId: series.id, originalDate: occ.originalDate };
+      els.formTitle.textContent = mode === "occurrence" ? "Edit This Occurrence" : mode === "future" ? "Edit This & Future" : "Edit Entire Series";
+      els.taskTitle.value = occ.title;
+      els.taskDescription.value = occ.description || "";
+      els.taskDate.value = mode === "series" ? series.startDate : occ.date;
+      els.taskTime.value = occ.time || "";
+      els.taskRepeat.value = mode === "occurrence" ? "none" : series.recurrence;
+      els.taskRepeat.disabled = mode === "occurrence";
+      els.endMode.value = mode === "occurrence" ? "never" : (series.endDate ? "date" : "never");
+      els.endDate.value = mode === "occurrence" ? "" : (series.endDate || "");
+      els.reminderMode.value = String(occ.reminderMode ?? series.reminderMode ?? "none");
+      els.notifyEveryHours.value = String(occ.notifyEveryHours ?? series.notifyEveryHours ?? 0);
+      syncEndFields();
+      syncReminderFields();
+      hideFormError();
+      closeModal(els.detailBackdrop);
+      openModal(els.formBackdrop);
+      if (ex?.completed || occ.completed) {
+        // Completion state is preserved separately when saving occurrence edits.
+      }
+    }
+
+    function syncEndFields() {
+      const recurring = els.taskRepeat.value !== "none";
+      els.endModeField.style.display = recurring ? "grid" : "none";
+      els.endDateField.style.display = recurring && els.endMode.value === "date" ? "grid" : "none";
+      if (!recurring) {
+        els.endMode.value = "never";
+        els.endDate.value = "";
+      }
+    }
+
+    function syncReminderFields() {
+      const enabled = els.reminderMode.value !== "none";
+      els.notifyEveryField.style.display = enabled ? "grid" : "none";
+      els.notificationHelp.style.display = enabled ? "grid" : "none";
+      if (!enabled) els.notifyEveryHours.value = "0";
+    }
+
+    function showFormError(message) { els.formError.textContent = message; els.formError.classList.add("show"); }
+    function hideFormError() { els.formError.textContent = ""; els.formError.classList.remove("show"); }
+
+    function getFormData() {
+      return {
+        title: els.taskTitle.value.trim(),
+        description: els.taskDescription.value.trim(),
+        startDate: els.taskDate.value,
+        time: els.taskTime.value,
+        recurrence: els.taskRepeat.value,
+        endDate: els.endMode.value === "date" ? els.endDate.value : null,
+        reminderMode: els.reminderMode.value,
+        notifyEveryHours: Math.max(0, Number.parseInt(els.notifyEveryHours.value || "0", 10) || 0)
+      };
+    }
+
+    function validateForm(data) {
+      if (!data.title) return "Please enter a title.";
+      if (!data.startDate) return "Please select a start date.";
+      if (!REPEAT_LABELS[data.recurrence]) return "Please select a valid repeat option.";
+      if (data.endDate && data.endDate < data.startDate) return "Repeat end date cannot be before the start date.";
+      if (data.reminderMode !== "none" && !Object.prototype.hasOwnProperty.call(REMINDER_LABELS, data.reminderMode)) return "Please select a valid notification reminder.";
+      if (data.reminderMode !== "none" && !data.time) return "Please set a task time before enabling notifications.";
+      if (data.notifyEveryHours < 0 || data.notifyEveryHours > 24) return "Repeat notification hours must be from 0 to 24.";
+      return "";
+    }
+
+    function saveForm() {
+      const data = getFormData();
+      const error = validateForm(data);
+      if (error) return showFormError(error);
+
+      const now = new Date().toISOString();
+      if (!editContext) {
+        schedules.push({ id: uid(), ...data, createdAt: now, updatedAt: now, exceptions: {} });
+        toast("Schedule created.");
+      } else {
+        const series = schedules.find(s => s.id === editContext.seriesId);
+        if (!series) return;
+
+        if (editContext.mode === "occurrence") {
+          const old = series.exceptions?.[editContext.originalDate] || {};
+          series.exceptions = series.exceptions || {};
+          series.exceptions[editContext.originalDate] = {
+            type: "override",
+            title: data.title,
+            description: data.description,
+            date: data.startDate,
+            time: data.time,
+            reminderMode: data.reminderMode,
+            notifyEveryHours: data.notifyEveryHours,
+            completed: Boolean(old.completed || selectedOccurrence?.completed)
+          };
+          series.updatedAt = now;
+        } else if (editContext.mode === "future") {
+          // End the original series before the selected occurrence and create a new series from the edited date.
+          const cut = editContext.originalDate;
+          series.endDate = dayBefore(cut);
+          series.updatedAt = now;
+          schedules.push({ id: uid(), ...data, createdAt: now, updatedAt: now, exceptions: {} });
+        } else {
+          Object.assign(series, data, { updatedAt: now });
+        }
+        toast("Schedule updated.");
+      }
+
+      els.taskRepeat.disabled = false;
+      saveSchedules();
+      closeModal(els.formBackdrop);
+      renderAll();
+    }
+
+    function openDetails(occ) {
+      selectedOccurrence = occ;
+      const series = schedules.find(s => s.id === occ.seriesId);
+      if (!series) return;
+      els.detailGrid.innerHTML = `
+        <div class="detail-row"><div class="detail-label">Title</div><div class="detail-value"><strong>${escapeHtml(occ.title)}</strong></div></div>
+        <div class="detail-row"><div class="detail-label">Description</div><div class="detail-value">${escapeHtml(occ.description || "No description")}</div></div>
+        <div class="detail-row"><div class="detail-label">Date</div><div class="detail-value">${escapeHtml(formatDateHuman(occ.date))}</div></div>
+        <div class="detail-row"><div class="detail-label">Time</div><div class="detail-value">${escapeHtml(occ.time ? formatTime(occ.time) : "No specific time")}</div></div>
+        <div class="detail-row"><div class="detail-label">Repeat</div><div class="detail-value">${escapeHtml(REPEAT_LABELS[series.recurrence])}${series.endDate ? ` · until ${escapeHtml(formatDateHuman(series.endDate))}` : ""}</div></div>
+        <div class="detail-row"><div class="detail-label">Reminder</div><div class="detail-value">${escapeHtml(REMINDER_LABELS[String(occ.reminderMode ?? "none")] || "None")}${Number(occ.notifyEveryHours) > 0 ? ` · every ${Number(occ.notifyEveryHours)} hour${Number(occ.notifyEveryHours) === 1 ? "" : "s"}` : ""}</div></div>
+        <div class="detail-row"><div class="detail-label">Status</div><div class="detail-value"><span class="status-tag ${occ.completed ? "done" : ""}">${occ.completed ? "✓ Completed" : "Pending"}</span></div></div>`;
+      els.completeBtn.textContent = occ.completed ? "↩ Mark Pending" : "✓ Complete";
+      openModal(els.detailBackdrop);
+    }
+
+    function toggleComplete() {
+      if (!selectedOccurrence) return;
+      const series = schedules.find(s => s.id === selectedOccurrence.seriesId);
+      if (!series) return;
+      const key = selectedOccurrence.originalDate;
+      const ex = series.exceptions?.[key];
+      series.exceptions = series.exceptions || {};
+
+      if (ex?.type === "override") {
+        ex.completed = !selectedOccurrence.completed;
+      } else if (selectedOccurrence.completed) {
+        delete series.exceptions[key];
+      } else {
+        series.exceptions[key] = { type: "completed" };
+      }
+      series.updatedAt = new Date().toISOString();
+      saveSchedules();
+      closeModal(els.detailBackdrop);
+      toast(selectedOccurrence.completed ? "Marked as pending." : "Marked as completed.");
+      renderAll();
+    }
+
+    function askEditScope() {
+      if (!selectedOccurrence) return;
+      const series = schedules.find(s => s.id === selectedOccurrence.seriesId);
+      if (!series) return;
+      if (series.recurrence === "none") return openEditForm(selectedOccurrence, "series");
+      pendingScopeAction = "edit";
+      showScopeModal("Edit recurring schedule", [
+        ["occurrence", "This occurrence only", "Change only this date without affecting the rest of the series."],
+        ["future", "This and future occurrences", "Keep older occurrences, then start a new schedule from this point."],
+        ["series", "Entire recurring series", "Apply changes to the whole recurring schedule."]
+      ]);
+    }
+
+    function askDeleteScope() {
+      if (!selectedOccurrence) return;
+      const series = schedules.find(s => s.id === selectedOccurrence.seriesId);
+      if (!series) return;
+      if (series.recurrence === "none") {
+        showScopeModal("Delete schedule?", [["series", "Delete this schedule", "This cannot be undone."]], "delete");
+        return;
+      }
+      pendingScopeAction = "delete";
+      showScopeModal("Delete recurring schedule", [
+        ["occurrence", "Delete this occurrence only", "Skip only this occurrence."],
+        ["future", "Delete this and future occurrences", "Keep older occurrences, but stop the series here."],
+        ["series", "Delete entire series", "Remove this recurring schedule completely."]
+      ]);
+    }
+
+    function showScopeModal(title, options, forceAction = null) {
+      if (forceAction) pendingScopeAction = forceAction;
+      els.scopeTitle.textContent = title;
+      els.scopeOptions.innerHTML = "";
+      options.forEach(([value, label, help]) => {
+        const btn = document.createElement("button");
+        btn.className = "scope-btn";
+        btn.innerHTML = `${escapeHtml(label)}<small>${escapeHtml(help)}</small>`;
+        btn.addEventListener("click", () => handleScopeChoice(value));
+        els.scopeOptions.appendChild(btn);
+      });
+      closeModal(els.detailBackdrop);
+      openModal(els.scopeBackdrop);
+    }
+
+    function handleScopeChoice(scope) {
+      closeModal(els.scopeBackdrop);
+      if (!selectedOccurrence) return;
+      if (pendingScopeAction === "edit") {
+        openEditForm(selectedOccurrence, scope);
+        return;
+      }
+      if (pendingScopeAction === "delete") performDelete(scope);
+    }
+
+    function performDelete(scope) {
+      const occ = selectedOccurrence;
+      const series = schedules.find(s => s.id === occ.seriesId);
+      if (!series) return;
+
+      if (scope === "occurrence") {
+        series.exceptions = series.exceptions || {};
+        series.exceptions[occ.originalDate] = { type: "deleted" };
+        series.updatedAt = new Date().toISOString();
+      } else if (scope === "future") {
+        series.endDate = dayBefore(occ.originalDate);
+        series.updatedAt = new Date().toISOString();
+      } else {
+        schedules = schedules.filter(s => s.id !== series.id);
+      }
+      saveSchedules();
+      toast("Schedule deleted.");
+      selectedOccurrence = null;
+      renderAll();
+    }
+
+    function openDayAgenda(dateStr, tasks) {
+      els.agendaTitle.textContent = formatDateHuman(dateStr);
+      els.agendaList.innerHTML = "";
+      tasks.forEach(occ => {
+        const el = document.createElement("div");
+        el.className = "agenda-item";
+        el.innerHTML = `<button><strong>${occ.completed ? "✓ " : ""}${escapeHtml(occ.title)}</strong><div class="mini-meta">${escapeHtml(occ.time ? formatTime(occ.time) : "No specific time")} · ${escapeHtml(REPEAT_LABELS[occ.recurrence])}</div></button>`;
+        el.querySelector("button").addEventListener("click", () => { closeModal(els.agendaBackdrop); openDetails(occ); });
+        els.agendaList.appendChild(el);
+      });
+      openModal(els.agendaBackdrop);
+    }
+
+    // Navigation and controls
+    els.prevBtn.addEventListener("click", () => { viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1, 12); renderAll(); });
+    els.nextBtn.addEventListener("click", () => { viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1, 12); renderAll(); });
+    els.todayBtn.addEventListener("click", () => { viewDate = startOfMonth(new Date()); renderAll(); });
+    els.addScheduleBtn.addEventListener("click", () => openAddForm());
+    els.saveScheduleBtn.addEventListener("click", saveForm);
+    function notificationSupportMessage() {
+      if (!("Notification" in window)) return "Notifications are not supported by this browser.";
+      if (!("serviceWorker" in navigator)) return "This browser does not support mobile web notifications.";
+      if (!window.isSecureContext) return "Notifications require the deployed HTTPS Vercel website.";
+      return "";
+    }
+
+    async function registerNotificationWorker() {
+      if (!("serviceWorker" in navigator) || !window.isSecureContext) return null;
+      try {
+        return await navigator.serviceWorker.register("./sw.js");
+      } catch (err) {
+        console.warn("Service worker registration failed:", err);
+        return null;
+      }
+    }
+
+    function updateNotificationButton() {
+      const btn = els.enableNotificationsBtn;
+      if (!btn) return;
+      const text = btn.querySelector(".notify-text");
+      const unsupported = notificationSupportMessage();
+      if (unsupported) {
+        if (text) text.textContent = "Notifications unavailable";
+        btn.disabled = true;
+        btn.title = unsupported;
+        return;
+      }
+      btn.disabled = false;
+      btn.classList.toggle("enabled", Notification.permission === "granted");
+      if (text) text.textContent = Notification.permission === "granted" ? "Notifications Enabled" : Notification.permission === "denied" ? "Notifications Blocked" : "Enable Notifications";
+    }
+
+    async function enableNotifications() {
+      const problem = notificationSupportMessage();
+      if (problem) return toast(problem);
+      try {
+        await registerNotificationWorker();
+        const permission = await Notification.requestPermission();
+        updateNotificationButton();
+        if (permission === "granted") {
+          toast("Notifications enabled.");
+          await showSystemNotification("Spotify Billing", "Notifications are enabled. Keep this tab open for scheduled reminder checks.", "spotify-billing-test");
+          checkReminders();
+        } else if (permission === "denied") {
+          toast("Notifications are blocked. Allow them in your browser site settings.");
+        }
+      } catch (err) {
+        console.warn(err);
+        toast("Could not enable notifications on this browser.");
+      }
+    }
+
+    async function showSystemNotification(title, body, tag) {
+      if (!("Notification" in window) || Notification.permission !== "granted") return false;
+      const options = { body, tag, renotify: true, data: { url: location.href } };
+      try {
+        if ("serviceWorker" in navigator) {
+          const reg = await navigator.serviceWorker.ready;
+          await reg.showNotification(title, options);
+          return true;
+        }
+      } catch (err) {
+        console.warn("Service worker notification failed; trying page notification.", err);
+      }
+      try {
+        new Notification(title, options);
+        return true;
+      } catch (err) {
+        console.warn("Notification failed:", err);
+        return false;
+      }
+    }
+
+    function occurrenceDateTime(dateStr, timeStr) {
+      if (!dateStr || !timeStr) return null;
+      const [y,m,d] = dateStr.split("-").map(Number);
+      const [hh,mm] = timeStr.split(":").map(Number);
+      return new Date(y, m - 1, d, hh, mm, 0, 0);
+    }
+
+    function endOfOccurrenceDay(dateStr) {
+      const [y,m,d] = dateStr.split("-").map(Number);
+      return new Date(y, m - 1, d, 23, 59, 59, 999);
+    }
+
+    async function checkReminders() {
+      if (!("Notification" in window) || Notification.permission !== "granted") return;
+      const now = new Date();
+      const rangeStart = addDays(startOfDay(now), -1);
+      const rangeEnd = addDays(startOfDay(now), 1);
+      const items = getOccurrences(rangeStart, rangeEnd);
+
+      for (const occ of items) {
+        if (occ.completed || String(occ.reminderMode ?? "none") === "none" || !occ.time) continue;
+        const scheduled = occurrenceDateTime(occ.date, occ.time);
+        if (!scheduled) continue;
+        const offsetMinutes = Number(occ.reminderMode) || 0;
+        const firstReminder = new Date(scheduled.getTime() - offsetMinutes * 60000);
+        const stopAt = endOfOccurrenceDay(occ.date);
+        if (now < firstReminder || now > stopAt) continue;
+
+        const everyHours = Math.max(0, Number(occ.notifyEveryHours) || 0);
+        const stateKey = `${occ.seriesId}|${occ.originalDate}|${occ.date}|${firstReminder.getTime()}|${everyHours}`;
+        const lastSent = Number(notificationState[stateKey] || 0);
+        const intervalMs = everyHours * 60 * 60 * 1000;
+        const shouldSend = !lastSent || (everyHours > 0 && now.getTime() - lastSent >= intervalMs);
+        if (!shouldSend) continue;
+
+        const repeatText = everyHours > 0 ? ` Reminder repeats every ${everyHours} hour${everyHours === 1 ? "" : "s"} until completed or today ends.` : "";
+        const ok = await showSystemNotification(
+          occ.title,
+          `${formatDateHuman(occ.date)} · ${formatTime(occ.time)}.${repeatText}`,
+          `spotify-billing-${occ.seriesId}-${occ.originalDate}`
+        );
+        if (ok) {
+          notificationState[stateKey] = Date.now();
+          saveNotificationState();
+        }
+      }
+    }
+
+    els.enableNotificationsBtn.addEventListener("click", enableNotifications);
+    els.reminderMode.addEventListener("change", syncReminderFields);
+    els.taskRepeat.addEventListener("change", syncEndFields);
+    els.endMode.addEventListener("change", syncEndFields);
+    els.editBtn.addEventListener("click", askEditScope);
+    els.deleteBtn.addEventListener("click", askDeleteScope);
+    els.completeBtn.addEventListener("click", toggleComplete);
+
+    els.searchInput.addEventListener("input", () => { searchTerm = els.searchInput.value; renderAll(); });
+    els.filterRow.addEventListener("click", e => {
+      const chip = e.target.closest(".filter-chip");
+      if (!chip) return;
+      activeFilter = chip.dataset.filter;
+      els.filterRow.querySelectorAll(".filter-chip").forEach(c => c.classList.toggle("active", c === chip));
+      renderAll();
+    });
+
+    window.addEventListener("resize", debounce(renderCalendar, 120));
+
+    function debounce(fn, wait) {
+      let timer;
+      return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), wait); };
+    }
+
+    // Allow Enter to save when appropriate, but not from textarea.
+    els.scheduleForm.addEventListener("keydown", e => {
+      if (e.key === "Enter" && e.target.tagName !== "TEXTAREA") {
+        e.preventDefault();
+        saveForm();
+      }
+    });
+
+    // Restore disabled repeat selector whenever form modal is closed.
+    els.formBackdrop.addEventListener("transitionend", () => {});
+    document.querySelectorAll('[data-close="formBackdrop"]').forEach(btn => btn.addEventListener("click", () => { els.taskRepeat.disabled = false; }));
+
+    registerNotificationWorker().finally(updateNotificationButton);
+    setInterval(checkReminders, 30000);
+    document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") checkReminders(); });
+    window.addEventListener("focus", checkReminders);
+
+    renderAll();
+    checkReminders();
+  </script>
+</body>
+</html>
